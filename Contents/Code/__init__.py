@@ -32,7 +32,7 @@ def Start():
 def MainMenu():
   dir = MediaContainer()
 
-  c = HTML.ElementFromURL(BASE_URL, errors='ignore').xpath('/html/body//div[@id="playlist"]/ul/li')
+  c = HTML.ElementFromURL(BASE_URL, errors='ignore').xpath('//div[@id="playlist"]/ul/li')
   for category in c:
     item = category.xpath('./a')
     if len(item) == 1:
@@ -52,7 +52,7 @@ def MainMenu():
 def Category(sender, title):
   dir = MediaContainer(title2=title)
 
-  c = HTML.ElementFromURL(BASE_URL, errors='ignore').xpath('/html/body//div[@id="playlist"]/ul/li/span/a[text()="' + title + '"]/../../ul/li/a')
+  c = HTML.ElementFromURL(BASE_URL, errors='ignore').xpath('//div[@id="playlist"]/ul/li/span/a[text()="' + title + '"]/../../ul/li/a')
   for category in c:
     title = category.text.strip()
     id = re.search('playlist_id=([0-9]+)', category.get('href')).group(1)

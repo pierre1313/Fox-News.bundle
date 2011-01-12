@@ -16,59 +16,56 @@ ICON_DEFAULT   = 'icon-default.png'
 def Start():
   Plugin.AddPrefixHandler(PLUGIN_PREFIX, MainMenu, 'FOX News', ICON_DEFAULT, ART_DEFAULT)
 
-  Plugin.AddViewGroup('Category', viewMode='List', mediaType='items')
-  Plugin.AddViewGroup('Details', viewMode='InfoList', mediaType='items')
+  Plugin.AddViewGroup('List', viewMode='List', mediaType='items')
+  Plugin.AddViewGroup('InfoList', viewMode='InfoList', mediaType='items')
 
   # Set the default MediaContainer attributes
   MediaContainer.title1    = 'FOX News'
-  MediaContainer.viewGroup = 'Category'
+  MediaContainer.viewGroup = 'List'
   MediaContainer.art       = R(ART_DEFAULT)
 
+  DirectoryItem.thumb      = R(ICON_DEFAULT)
+
   # Set the default cache time
-  HTTP.SetCacheTime(CACHE_1HOUR)
+  HTTP.CacheTime = 1800
 
 ###################################################################################################
 
 def MainMenu():
   dir = MediaContainer()
 
-  c = HTML.ElementFromURL(BASE_URL, errors='ignore').xpath('//div[@id="playlist"]/ul/li')
-  for category in c:
-    item = category.xpath('./a')
-    if len(item) == 1:
-      title = item[0].text.strip()
-      id = re.search('playlist_id=([0-9]+)', item[0].get('href')).group(1)
-      dir.Append(Function(DirectoryItem(Playlist, title=title, thumb=R(ICON_DEFAULT)), title=title, id=id))
-    else:
-      item = category.xpath('./span/a')
-      if len(item) == 1:
-        title = item[0].text.strip()
-        dir.Append(Function(DirectoryItem(Category, title=title, thumb=R(ICON_DEFAULT)), title=title))
+  i = 0
+  frontpage = HTML.ElementFromURL(BASE_URL, errors='ignore')
+  for category in frontpage.xpath('//span[@class="arrow-up"]'):
+    title = category.xpath('./a')[0].text.strip()
+    i = i + 1
+    dir.Append(Function(DirectoryItem(Category, title=title), i=i))
 
   return dir
 
 ###################################################################################################
 
-def Category(sender, title):
-  dir = MediaContainer(title2=title)
+def Category(sender, i):
+  Log(i)
+  dir = MediaContainer(title2=sender.itemTitle)
 
-  c = HTML.ElementFromURL(BASE_URL, errors='ignore').xpath('//div[@id="playlist"]/ul/li/span/a[text()="' + title + '"]/../../ul/li/a')
-  for category in c:
-    title = category.text.strip()
-    id = re.search('playlist_id=([0-9]+)', category.get('href')).group(1)
-    dir.Append(Function(DirectoryItem(Playlist, title=title, thumb=R(ICON_DEFAULT)), title=title, id=id))
+  frontpage = HTML.ElementFromURL(BASE_URL, errors='ignore')
+  for sub in frontpage.xpath('//div[@id="playlist-2"]/ul[' + str(i) + ']/li'):
+    title = sub.xpath('./a')[0].text.strip()
+    playlist_id = sub.xpath('./a')[0].get('href').split('=')[1]
+    dir.Append(Function(DirectoryItem(Playlist, title=title), playlist_id=playlist_id))
 
   return dir
 
 ###################################################################################################
 
-def Playlist(sender, title, id):
-  dir = MediaContainer(viewGroup='Details', title2=title)
+def Playlist(sender, playlist_id):
+  dir = MediaContainer(viewGroup='InfoList', title2=sender.itemTitle)
 
-  Log( RSS_FEED % id )
-  i = XML.ElementFromURL(RSS_FEED % id, errors='ignore').xpath('/rss/channel/item')
+  Log( RSS_FEED % playlist_id )
+  playlist = XML.ElementFromURL(RSS_FEED % (playlist_id), errors='ignore').xpath('/rss/channel/item')
 
-  for item in i:
+  for item in playlist:
     title       = item.xpath('./title')[0].text.strip()
     title       = re.sub('&amp;', '&', title)
     description = item.xpath('.//media:description', namespaces=RSS_NS)[0].text
@@ -76,9 +73,18 @@ def Playlist(sender, title, id):
     duration    = int(duration) * 1000
     date        = item.xpath('./media:content/mvn:airDate', namespaces=RSS_NS)[0].text
     date        = Datetime.ParseDate(date).strftime('%a %b %d, %Y')
-    thumb       = item.xpath('./media:content/media:thumbnail', namespaces=RSS_NS)[0].text
+    thumb_url   = item.xpath('./media:content/media:thumbnail', namespaces=RSS_NS)[0].text
     url         = item.xpath('./media:content', namespaces=RSS_NS)[0].get('url')
 
-    dir.Append(VideoItem(url, title=title, subtitle=date, duration=duration, summary=description, thumb=thumb))
+    dir.Append(VideoItem(url, title=title, subtitle=date, duration=duration, summary=description, thumb=Function(Thumb, url=thumb_url)))
 
   return dir
+
+###################################################################################################
+
+def Thumb(url):
+  try:
+    data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
+    return DataObject(data, 'image/jpeg')
+  except:
+    return Redirect(R(ICON_DEFAULT))

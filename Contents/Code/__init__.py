@@ -1,5 +1,3 @@
-import re
-
 ###################################################################################################
 
 PLUGIN_PREFIX  = '/video/foxnews'
@@ -62,12 +60,11 @@ def Category(sender, i):
 def Playlist(sender, playlist_id):
   dir = MediaContainer(viewGroup='InfoList', title2=sender.itemTitle)
 
-  Log( RSS_FEED % playlist_id )
+#  Log( RSS_FEED % playlist_id )
   playlist = XML.ElementFromURL(RSS_FEED % (playlist_id), errors='ignore').xpath('/rss/channel/item')
 
   for item in playlist:
-    title       = item.xpath('./title')[0].text.strip()
-    title       = re.sub('&amp;', '&', title)
+    title       = item.xpath('./title')[0].text.replace('&amp;', '&').strip()
     description = item.xpath('.//media:description', namespaces=RSS_NS)[0].text
     duration    = item.xpath('./media:content/mvn:duration', namespaces=RSS_NS)[0].text
     duration    = int(duration) * 1000

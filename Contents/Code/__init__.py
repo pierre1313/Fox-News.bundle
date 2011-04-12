@@ -1,34 +1,26 @@
-###################################################################################################
+BASE_URL = 'http://video.foxnews.com'
+RSS_FEED = '%s/v/feed/playlist/%%s.xml' % BASE_URL
+RSS_NS   = {'mvn':'http://maven.net/mcr/4.1', 'media':'http://search.yahoo.com/mrss/'}
 
-PLUGIN_PREFIX  = '/video/foxnews'
-BASE_URL       = 'http://video.foxnews.com'
-RSS_FEED       = '%s/v/feed/playlist/%%s.xml' % BASE_URL
-RSS_NS         = {'mvn':'http://maven.net/mcr/4.1', 'media':'http://search.yahoo.com/mrss/'}
-
-# Default artwork and icon(s)
-ART_DEFAULT    = 'art-default.png'
-ICON_DEFAULT   = 'icon-default.png'
+ART  = 'art-default.png'
+ICON = 'icon-default.png'
 
 ###################################################################################################
-
 def Start():
-  Plugin.AddPrefixHandler(PLUGIN_PREFIX, MainMenu, 'FOX News', ICON_DEFAULT, ART_DEFAULT)
+  Plugin.AddPrefixHandler('/video/foxnews', MainMenu, 'FOX News', ICON, ART)
 
   Plugin.AddViewGroup('List', viewMode='List', mediaType='items')
   Plugin.AddViewGroup('InfoList', viewMode='InfoList', mediaType='items')
 
-  # Set the default MediaContainer attributes
   MediaContainer.title1    = 'FOX News'
   MediaContainer.viewGroup = 'List'
-  MediaContainer.art       = R(ART_DEFAULT)
+  MediaContainer.art       = R(ART)
+  DirectoryItem.thumb      = R(ICON)
 
-  DirectoryItem.thumb      = R(ICON_DEFAULT)
-
-  # Set the default cache time
   HTTP.CacheTime = 1800
+  HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10.6; en-US; rv:1.9.2.13) Gecko/20101203 Firefox/3.6.13'
 
 ###################################################################################################
-
 def MainMenu():
   dir = MediaContainer()
 
@@ -42,9 +34,7 @@ def MainMenu():
   return dir
 
 ###################################################################################################
-
 def Category(sender, i):
-  Log(i)
   dir = MediaContainer(title2=sender.itemTitle)
 
   frontpage = HTML.ElementFromURL(BASE_URL, errors='ignore')
@@ -56,12 +46,9 @@ def Category(sender, i):
   return dir
 
 ###################################################################################################
-
 def Playlist(sender, playlist_id):
   dir = MediaContainer(viewGroup='InfoList', title2=sender.itemTitle)
-
-#  Log( RSS_FEED % playlist_id )
-  playlist = XML.ElementFromURL(RSS_FEED % (playlist_id), errors='ignore').xpath('/rss/channel/item')
+  playlist = XML.ElementFromURL(RSS_FEED % (playlist_id), errors='ignore').xpath('//item')
 
   for item in playlist:
     title       = item.xpath('./title')[0].text.replace('&amp;', '&').strip()
@@ -75,13 +62,15 @@ def Playlist(sender, playlist_id):
 
     dir.Append(VideoItem(url, title=title, subtitle=date, duration=duration, summary=description, thumb=Function(Thumb, url=thumb_url)))
 
-  return dir
+  if len(dir) == 0:
+    return MessageContainer('Empty', "There aren't any items")
+  else:
+    return dir
 
 ###################################################################################################
-
 def Thumb(url):
   try:
     data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
     return DataObject(data, 'image/jpeg')
   except:
-    return Redirect(R(ICON_DEFAULT))
+    return Redirect(R(ICON))

@@ -1,0 +1,44 @@
+import re
+
+SEARCH_URL = 'http://www.foxnews.com/search-results/search?&q=%s&mediatype=Video'
+
+####################################################################################################
+
+def Search(query):
+
+  # Compute the URL and download the HTML
+  url = SEARCH_URL % String.Quote(query, usePlus = True)
+  search_page = HTML.ElementFromURL(url)
+  search_results = search_page.xpath("//li[contains(@class, 'ez-itemMod')]")
+   
+  # Create a container to hold the results
+  c = ObjectContainer()
+  for item in search_results:  
+    try:
+
+      # Although we have explicitly requested to only search for videos, it's possible that other
+      # media types (such as pictures) have also been placed on the page. We should filter these
+      # simply using their urls.
+      url = item.xpath(".//div[@class='ez-thumbs']/a")[0].get('href')
+      if url.startswith("http://video.foxnews.com") == False:
+        continue
+
+      # Extract the other details from the page
+      title = "".join(item.xpath(".//a[@class='ez-title']//text()")).strip()
+      thumb = item.xpath(".//img")[0].get('src')
+
+      description = None
+      try: description = "".join(item.xpath(".//p[@class='ez-desc']//text()")).strip()
+      except: pass
+
+      c.add(VideoClipObject(
+        url = url,
+        title = title,
+        thumb = thumb,
+        summary = description
+      ))
+
+    except:
+      Log.Exception("Exception adding video result")
+      
+  return c

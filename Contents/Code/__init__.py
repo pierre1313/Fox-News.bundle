@@ -39,10 +39,12 @@ def Category(sender, i):
 
   frontpage = HTML.ElementFromURL(BASE_URL, errors='ignore')
   for sub in frontpage.xpath('//div[@id="playlist-2"]/ul[' + str(i) + ']/li'):
-    title = sub.xpath('./a')[0].text.strip()
-    playlist_id = sub.xpath('./a')[0].get('href').split('=')[1]
-    dir.Append(Function(DirectoryItem(Playlist, title=title), playlist_id=playlist_id))
-
+    try:
+      title = sub.xpath('./a')[0].text.strip()
+      playlist_id = sub.xpath('./a')[0].get('href').split('=')[1]
+      dir.Append(Function(DirectoryItem(Playlist, title=title), playlist_id=playlist_id))
+    except:
+      pass 
   return dir
 
 ###################################################################################################
